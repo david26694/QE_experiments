@@ -115,3 +115,9 @@ dirty_tests
 
 # Data folder
 data/
+
+# Results data
+results_regression/
+
+# catboost folder
+catboost_info
