@@ -112,3 +112,6 @@ ENV/
 
 # My tests
 dirty_tests
+
+# Data folder
+data/
