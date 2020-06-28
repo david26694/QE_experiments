@@ -121,3 +121,6 @@ results_regression/
 
 # catboost folder
 catboost_info
+
+# vectorized images
+*.eps
