@@ -7,6 +7,9 @@ import sklearn
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
 import pandas as pd
+import random
+random.seed(42)
+np.random.seed(42)
 
 pd.set_option("max_columns", None)
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -98,7 +101,7 @@ def compare_results(grid_1_res, grid_2_res):
     all_results = all_results[all_results["variable"].str.contains("split")]
 
     test_results = wilcoxon(
-        all_results.value_pe, all_results.value_te, alternative="greater"
+        -all_results.value_pe, -all_results.value_te, alternative="less"
     )
 
     return test_results.pvalue.round(3)
@@ -124,7 +127,7 @@ data = [
     "data/stackoverflow.csv",
     "data/so2019.csv",
     "data/ks.csv",
-    "data/medical_payments_sample.csv",
+    "data/life.csv",
     "data/cauchy.csv",
 ]
 
@@ -255,17 +258,19 @@ columns = [
 print(
     tabulate(
         tabular_data=[],
-        headers=["Data", "Model", "Train", "Test", "pvalue"],
+        headers=["Data", "Model", "Train", "Cv", "Test"],
         tablefmt="psql",
     )
 )
 
-for i in range(0, len(data)):
+results_dict = {}
 
-    cv = RepeatedKFold(n_repeats=3, n_splits=4, random_state=42)
+for i, data_i in enumerate(data):
+
+    cv = RepeatedKFold(n_repeats=3, n_splits=4)
 
     # Read data
-    df = pd.read_csv(data[i])
+    df = pd.read_csv(data_i)
 
     if df.shape[0] > 100_000:
         df = df.sample(n=100_000)
@@ -282,255 +287,113 @@ for i in range(0, len(data)):
         df.drop(columns=target[i]), df[target[i]]
     )
 
+    results_dict[data_i] = {}
+
     # Elastic Net + target encoding
     scaler = sklearn.preprocessing.StandardScaler()
-    clf = sklearn.linear_model.ElasticNet()
+    lm = sklearn.linear_model.ElasticNet()
+    lgbm = LGBMRegressor()
     te = MEstimateEncoder(cols=cols_enc[i])
+    pe = sktools.QuantileEncoder(cols=cols_enc[i], quantile=0.50)
 
-    pipe = Pipeline(
-        [
-            ("te", te),
-            (
-                "selector",
-                TypeSelector(np.number),
-            ),  # Selects Numerical Columns only
-            ("scaler", scaler),
-            ("clf", clf),
-        ]
-    )
+    encoders = {'te': te, 'pe': pe}
+    learners = {'lm': lm, 'lg': lgbm}
 
-    pipe_grid = {
-        "te__m": [1],
-    }
+    for learner_name, learner in learners.items():
 
-    # Train model
-    enet_te, enet_te_grid_results, enet_te_params = fit_pipe(
-        pipe, pipe_grid, X_tr, y_tr
-    )
+        results_dict[data_i][learner_name] = {}
 
-    score_enet_te_train = mean_absolute_error(y_tr, enet_te.predict(X_tr))
-    score_enet_te_test = mean_absolute_error(y_te, enet_te.predict(X_te))
-
-    score_enet_te_train_mse = mean_squared_error(y_tr, enet_te.predict(X_tr))
-    score_enet_te_test_mse = mean_squared_error(y_te, enet_te.predict(X_te))
-
-    print(
-        tabulate(
-            tabular_data=[
+        for encoder_name, encoder in encoders.items():
+            
+            results_dict[data_i][learner_name][encoder_name] = {}
+            
+            pipe = Pipeline(
                 [
-                    data[i][5:10],
-                    "enet_te",
-                    score_enet_te_train,
-                    score_enet_te_test,
-                    np.nan,
+                    ("enc", encoder),
+                    (
+                        "selector",
+                        TypeSelector(np.number),
+                    ),  # Selects Numerical Columns only
+                    ("scaler", scaler),
+                    ("learner", learner),
                 ]
-            ],
-            tablefmt="psql",
-        )
-    )
+            )
 
-    # Elastic Net + percentile encoding
-    scaler = sklearn.preprocessing.StandardScaler()
-    clf = sklearn.linear_model.ElasticNet()
-    pe = sktools.QuantileEncoder(cols=cols_enc[i], quantile=0.50, m=0)
+            pipe_grid = {}
 
-    pipe = Pipeline(
-        [
-            ("pe", pe),
-            (
-                "selector",
-                TypeSelector(np.number),
-            ),  # Selects Numerical Columns only
-            ("scaler", scaler),
-            ("clf", clf),
-        ]
-    )
+            # Train model
+            enet_te, enet_te_grid_results, enet_te_params = fit_pipe(
+                pipe, pipe_grid, X_tr, y_tr
+            )
 
-    pipe_grid = {
-        "pe__m": [1],
-        "pe__quantile": [0.50],
-    }
+            results_dict[data_i][learner_name][encoder_name]["grid_results"] = enet_te_grid_results
 
-    # Train model
-    enet_pe, enet_pe_grid_results, enet_pe_params = fit_pipe(
-        pipe, pipe_grid, X_tr, y_tr
-    )
+            results_dict[data_i][learner_name][encoder_name]["cv_mae"] = -enet_te_grid_results["mean_test_score"]
 
-    score_enet_pe_train = mean_absolute_error(y_tr, enet_pe.predict(X_tr))
-    score_enet_pe_test = mean_absolute_error(y_te, enet_pe.predict(X_te))
+            results_dict[data_i][learner_name][encoder_name]["train_mae"] = mean_absolute_error(y_tr, enet_te.predict(X_tr))
+            results_dict[data_i][learner_name][encoder_name]["test_mae"] = mean_absolute_error(y_te, enet_te.predict(X_te))
 
-    score_enet_pe_train_mse = mean_squared_error(y_tr, enet_pe.predict(X_tr))
-    score_enet_pe_test_mse = mean_squared_error(y_te, enet_pe.predict(X_te))
+            results_dict[data_i][learner_name][encoder_name]["train_mse"] = mean_squared_error(y_tr, enet_te.predict(X_tr))
+            results_dict[data_i][learner_name][encoder_name]["test_mse"] = mean_squared_error(y_te, enet_te.predict(X_te))
+            
+            print(
+                tabulate(
+                    tabular_data=[
+                        [
+                            data[i][5:10],
+                            f"{learner_name}_{encoder_name}",
+                            results_dict[data_i][learner_name][encoder_name]["train_mae"],
+                            results_dict[data_i][learner_name][encoder_name]["cv_mae"],
+                            results_dict[data_i][learner_name][encoder_name]["test_mae"]
+                        ]
+                    ],
+                    tablefmt="psql",
+                )
+            )
 
-    pvalue = compare_results(enet_te_grid_results, enet_pe_grid_results)
-    print(
-        tabulate(
-            tabular_data=[
-                [
-                    data[i][5:10],
-                    "enet_pe",
-                    score_enet_pe_train,
-                    score_enet_pe_test,
-                    pvalue,
-                ]
-            ],
-            tablefmt="psql",
-        )
-    )
-
-    # xgb + target encoding
-    scaler = sklearn.preprocessing.StandardScaler()
-    clf = LGBMRegressor()
-    te = MEstimateEncoder(cols=cols_enc[i])
-    var = VarianceThreshold(threshold=0.1)
-
-    pipe = Pipeline(
-        [
-            ("te", te),
-            (
-                "selector",
-                TypeSelector(np.number),
-            ),  # Selects Numerical Columns only
-            ("var", var),
-            ("scaler", scaler),
-            ("clf", clf),
-        ]
-    )
-
-    pipe_grid = {
-        "te__m": [1],
-    }
-
-    # Train model
-    xgb_te, xgb_te_grid_results, xgb_te_params = fit_pipe(
-        pipe, pipe_grid, X_tr, y_tr
-    )
-
-    score_xgb_te_train = mean_absolute_error(y_tr, xgb_te.predict(X_tr))
-    score_xgb_te_test = mean_absolute_error(y_te, xgb_te.predict(X_te))
-
-    score_xgb_te_train_mse = mean_squared_error(y_tr, xgb_te.predict(X_tr))
-    score_xgb_te_test_mse = mean_squared_error(y_te, xgb_te.predict(X_te))
-
-    print(
-        tabulate(
-            tabular_data=[
-                [
-                    data[i][5:10],
-                    "xgbs_te ",
-                    score_xgb_te_train,
-                    score_xgb_te_test,
-                    np.nan,
-                ]
-            ],
-            tablefmt="psql",
-        )
-    )
-
-    # xgb + percentile encoding
-    scaler = sklearn.preprocessing.StandardScaler()
-    clf = LGBMRegressor()
-    pe = sktools.QuantileEncoder(cols=cols_enc[i], quantile=0.5, m=0)
-    var = VarianceThreshold(threshold=0.01)
-
-    pipe = Pipeline(
-        [
-            ("pe", pe),
-            (
-                "selector",
-                TypeSelector(np.number),
-            ),  # Selects Numerical Columns only
-            ("var", var),
-            ("scaler", scaler),
-            ("clf", clf),
-        ]
-    )
-
-    pipe_grid = {
-        "pe__m": [1],
-        "pe__quantile": [0.50],
-    }
-
-    # Train model
-    xgb_pe, xgb_pe_grid_results, xgb_pe_params = fit_pipe(
-        pipe, pipe_grid, X_tr, y_tr
-    )
-
-    score_xgb_pe_train = mean_absolute_error(y_tr, xgb_pe.predict(X_tr))
-    score_xgb_pe_test = mean_absolute_error(y_te, xgb_pe.predict(X_te))
-
-    score_xgb_pe_train_mse = mean_squared_error(y_tr, xgb_pe.predict(X_tr))
-    score_xgb_pe_test_mse = mean_squared_error(y_te, xgb_pe.predict(X_te))
-
-    pvalue = compare_results(xgb_te_grid_results, xgb_pe_grid_results)
-    print(
-        tabulate(
-            tabular_data=[
-                [
-                    data[i][5:10],
-                    "xgbs_pe",
-                    score_xgb_pe_train,
-                    score_xgb_pe_test,
-                    pvalue,
-                ]
-            ],
-            tablefmt="psql",
-        )
-    )
-
-    # Grid Results
-    pd.DataFrame(enet_te_grid_results).to_csv(
-        "./results_regression/grid_results/{}_{}.csv".format(
-            "enet_te_grid_results", data[i][5:10]
-        )
-    )
-    pd.DataFrame(enet_pe_grid_results).to_csv(
-        "./results_regression/grid_results/{}_{}.csv".format(
-            "enet_pe_grid_results", data[i][5:10]
-        )
-    )
-    pd.DataFrame(xgb_te_grid_results).to_csv(
-        "./results_regression/grid_results/{}_{}.csv".format(
-            "xgb_te_grid_results", data[i][5:10]
-        )
-    )
-    pd.DataFrame(xgb_pe_grid_results).to_csv(
-        "./results_regression/grid_results/{}_{}.csv".format(
-            "xgbt_pe_grid_results", data[i][5:10]
-        )
-    )
+            pd.DataFrame(results_dict[data_i][learner_name][encoder_name]["grid_results"]).to_csv(
+                "./results_regression/grid_results/{}_{}.csv".format(
+                    f"{learner_name}_{encoder_name}_grid_results", data[i][5:10]
+                    )
+                )
+        
+        pvalue = compare_results(
+            results_dict[data_i][learner_name]['te']["grid_results"], 
+            results_dict[data_i][learner_name]['pe']["grid_results"]
+            )
+        print(f'p-value of wilcoxon test {pvalue}')
 
     # Add Results
     resultados.append(
         [
             data[i].split("/")[1],
             # Scores
-            score_enet_te_train,
-            score_enet_te_test,
-            score_enet_te_train_mse,
-            score_enet_te_test_mse,
-            score_enet_pe_train,
-            score_enet_pe_test,
-            score_enet_pe_train_mse,
-            score_enet_pe_test_mse,
-            score_xgb_te_train,
-            score_xgb_te_test,
-            score_xgb_te_train_mse,
-            score_xgb_te_test_mse,
-            score_xgb_pe_train,
-            score_xgb_pe_test,
-            score_xgb_pe_train_mse,
-            score_xgb_pe_test_mse,
+            results_dict[data_i]['lm']['te']["train_mae"],
+            results_dict[data_i]['lm']['te']["test_mae"],
+            results_dict[data_i]['lm']['te']["train_mse"],
+            results_dict[data_i]['lm']['te']["test_mse"],
+            results_dict[data_i]['lm']['pe']["train_mae"],
+            results_dict[data_i]['lm']['pe']["test_mae"],
+            results_dict[data_i]['lm']['pe']["train_mse"],
+            results_dict[data_i]['lm']['pe']["test_mse"],
+            results_dict[data_i]['lg']['te']["train_mae"],
+            results_dict[data_i]['lg']['te']["test_mae"],
+            results_dict[data_i]['lg']['te']["train_mse"],
+            results_dict[data_i]['lg']['te']["test_mse"],
+            results_dict[data_i]['lg']['pe']["train_mae"],
+            results_dict[data_i]['lg']['pe']["test_mae"],
+            results_dict[data_i]['lg']['pe']["train_mse"],
+            results_dict[data_i]['lg']['pe']["test_mse"],      
             # Shape
             df.shape,
             # params
-            enet_te_params,
-            enet_pe_params,
+            "",
+            "",
             # Time
             elapsed_time_mins(tic, time.time()),
         ]
     )
 
 
-resultados = pd.DataFrame(resultados, columns=columns)
-resultados.to_csv("./results_regression/resultados.csv", index=False)
+    resultados = pd.DataFrame(resultados, columns=columns)
+    resultados.to_csv("./results_regression/resultados.csv", index=False)
