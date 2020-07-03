@@ -127,7 +127,7 @@ data = [
     "data/stackoverflow.csv",
     "data/so2019.csv",
     "data/ks.csv",
-    "data/life.csv",
+    "data/medical_payments_sample.csv",
     "data/cauchy.csv",
 ]
 
