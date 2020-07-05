@@ -8,6 +8,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
 import pandas as pd
 import random
+
 random.seed(42)
 np.random.seed(42)
 
@@ -23,11 +24,6 @@ import os
 
 
 from lightgbm import LGBMRegressor
-
-
-import random
-random.seed(0)
-
 import time
 
 from category_encoders.m_estimate import MEstimateEncoder
@@ -37,74 +33,12 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import sktools
+from utils_custom import *
 from tabulate import tabulate
 
 
 # In[27]:
 
-
-class TypeSelector(BaseEstimator, TransformerMixin):
-    """
-    Transformer that filters a type of columns of a given data frame.
-    """
-
-    def __init__(self, dtype):
-        self.dtype = dtype
-
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        assert isinstance(X, pd.DataFrame)
-        # print("Type Selector out shape {}".format(X.select_dtypes(include=[self.dtype]).shape))
-        # print(X.select_dtypes(include=[self.dtype]).dtypes)
-        return X.select_dtypes(include=[self.dtype])
-
-
-def elapsed_time_mins(time1, time2):
-    elapsed = np.round(np.abs(time1 - time2) / 60, decimals=2)
-
-    return elapsed
-
-
-def fit_pipe(
-    pipe, pipe_grid, X, y, subsample=False, n_max=20_000, best_params=True
-):
-
-    if subsample:
-        X = X[0:n_max]
-        y = y[0:n_max]
-
-    # Instantiate the grid
-    pipe_cv = GridSearchCV(
-        pipe,
-        param_grid=pipe_grid,
-        n_jobs=n_jobs,
-        cv=cv,
-        scoring="neg_mean_absolute_error",
-    )
-
-    pipe_cv.fit(X, y)
-
-    best_estimator = pipe_cv.best_estimator_.fit(X_tr, y_tr)
-    grid_results = pd.DataFrame(pipe_cv.cv_results_)
-
-    return best_estimator, grid_results, pipe_cv.best_params_
-
-
-def compare_results(grid_1_res, grid_2_res):
-
-    all_results = grid_1_res.melt().merge(
-        grid_2_res.melt(), on="variable", suffixes=("_te", "_pe")
-    )
-
-    all_results = all_results[all_results["variable"].str.contains("split")]
-
-    test_results = wilcoxon(
-        -all_results.value_pe, -all_results.value_te, alternative="less"
-    )
-
-    return test_results.pvalue.round(3)
 
 # Check directories
 
@@ -153,7 +87,6 @@ drop = [
     [],
     [],
 ]
-
 
 
 cols_enc = [
@@ -296,17 +229,17 @@ for i, data_i in enumerate(data):
     te = MEstimateEncoder(cols=cols_enc[i])
     pe = sktools.QuantileEncoder(cols=cols_enc[i], quantile=0.50)
 
-    encoders = {'te': te, 'pe': pe}
-    learners = {'lm': lm, 'lg': lgbm}
+    encoders = {"te": te, "pe": pe}
+    learners = {"lm": lm, "lg": lgbm}
 
     for learner_name, learner in learners.items():
 
         results_dict[data_i][learner_name] = {}
 
         for encoder_name, encoder in encoders.items():
-            
+
             results_dict[data_i][learner_name][encoder_name] = {}
-            
+
             pipe = Pipeline(
                 [
                     ("enc", encoder),
@@ -326,64 +259,82 @@ for i, data_i in enumerate(data):
                 pipe, pipe_grid, X_tr, y_tr
             )
 
-            results_dict[data_i][learner_name][encoder_name]["grid_results"] = enet_te_grid_results
+            results_dict[data_i][learner_name][encoder_name][
+                "grid_results"
+            ] = enet_te_grid_results
 
-            results_dict[data_i][learner_name][encoder_name]["cv_mae"] = -enet_te_grid_results["mean_test_score"]
+            results_dict[data_i][learner_name][encoder_name][
+                "cv_mae"
+            ] = -enet_te_grid_results["mean_test_score"]
 
-            results_dict[data_i][learner_name][encoder_name]["train_mae"] = mean_absolute_error(y_tr, enet_te.predict(X_tr))
-            results_dict[data_i][learner_name][encoder_name]["test_mae"] = mean_absolute_error(y_te, enet_te.predict(X_te))
+            results_dict[data_i][learner_name][encoder_name][
+                "train_mae"
+            ] = mean_absolute_error(y_tr, enet_te.predict(X_tr))
+            results_dict[data_i][learner_name][encoder_name][
+                "test_mae"
+            ] = mean_absolute_error(y_te, enet_te.predict(X_te))
 
-            results_dict[data_i][learner_name][encoder_name]["train_mse"] = mean_squared_error(y_tr, enet_te.predict(X_tr))
-            results_dict[data_i][learner_name][encoder_name]["test_mse"] = mean_squared_error(y_te, enet_te.predict(X_te))
-            
+            results_dict[data_i][learner_name][encoder_name][
+                "train_mse"
+            ] = mean_squared_error(y_tr, enet_te.predict(X_tr))
+            results_dict[data_i][learner_name][encoder_name][
+                "test_mse"
+            ] = mean_squared_error(y_te, enet_te.predict(X_te))
+
             print(
                 tabulate(
                     tabular_data=[
                         [
                             data[i][5:10],
                             f"{learner_name}_{encoder_name}",
-                            results_dict[data_i][learner_name][encoder_name]["train_mae"],
+                            results_dict[data_i][learner_name][encoder_name][
+                                "train_mae"
+                            ],
                             results_dict[data_i][learner_name][encoder_name]["cv_mae"],
-                            results_dict[data_i][learner_name][encoder_name]["test_mae"]
+                            results_dict[data_i][learner_name][encoder_name][
+                                "test_mae"
+                            ],
                         ]
                     ],
                     tablefmt="psql",
                 )
             )
 
-            pd.DataFrame(results_dict[data_i][learner_name][encoder_name]["grid_results"]).to_csv(
+            pd.DataFrame(
+                results_dict[data_i][learner_name][encoder_name]["grid_results"]
+            ).to_csv(
                 "./results_regression/grid_results/{}_{}.csv".format(
                     f"{learner_name}_{encoder_name}_grid_results", data[i][5:10]
-                    )
                 )
-        
-        pvalue = compare_results(
-            results_dict[data_i][learner_name]['te']["grid_results"], 
-            results_dict[data_i][learner_name]['pe']["grid_results"]
             )
-        print(f'p-value of wilcoxon test {pvalue}')
+
+        pvalue = compare_results(
+            results_dict[data_i][learner_name]["te"]["grid_results"],
+            results_dict[data_i][learner_name]["pe"]["grid_results"],
+        )
+        print(f"p-value of wilcoxon test {pvalue}")
 
     # Add Results
     resultados.append(
         [
             data[i].split("/")[1],
             # Scores
-            results_dict[data_i]['lm']['te']["train_mae"],
-            results_dict[data_i]['lm']['te']["test_mae"],
-            results_dict[data_i]['lm']['te']["train_mse"],
-            results_dict[data_i]['lm']['te']["test_mse"],
-            results_dict[data_i]['lm']['pe']["train_mae"],
-            results_dict[data_i]['lm']['pe']["test_mae"],
-            results_dict[data_i]['lm']['pe']["train_mse"],
-            results_dict[data_i]['lm']['pe']["test_mse"],
-            results_dict[data_i]['lg']['te']["train_mae"],
-            results_dict[data_i]['lg']['te']["test_mae"],
-            results_dict[data_i]['lg']['te']["train_mse"],
-            results_dict[data_i]['lg']['te']["test_mse"],
-            results_dict[data_i]['lg']['pe']["train_mae"],
-            results_dict[data_i]['lg']['pe']["test_mae"],
-            results_dict[data_i]['lg']['pe']["train_mse"],
-            results_dict[data_i]['lg']['pe']["test_mse"],      
+            results_dict[data_i]["lm"]["te"]["train_mae"],
+            results_dict[data_i]["lm"]["te"]["test_mae"],
+            results_dict[data_i]["lm"]["te"]["train_mse"],
+            results_dict[data_i]["lm"]["te"]["test_mse"],
+            results_dict[data_i]["lm"]["pe"]["train_mae"],
+            results_dict[data_i]["lm"]["pe"]["test_mae"],
+            results_dict[data_i]["lm"]["pe"]["train_mse"],
+            results_dict[data_i]["lm"]["pe"]["test_mse"],
+            results_dict[data_i]["lg"]["te"]["train_mae"],
+            results_dict[data_i]["lg"]["te"]["test_mae"],
+            results_dict[data_i]["lg"]["te"]["train_mse"],
+            results_dict[data_i]["lg"]["te"]["test_mse"],
+            results_dict[data_i]["lg"]["pe"]["train_mae"],
+            results_dict[data_i]["lg"]["pe"]["test_mae"],
+            results_dict[data_i]["lg"]["pe"]["train_mse"],
+            results_dict[data_i]["lg"]["pe"]["test_mse"],
             # Shape
             df.shape,
             # params
@@ -393,7 +344,6 @@ for i, data_i in enumerate(data):
             elapsed_time_mins(tic, time.time()),
         ]
     )
-
 
     resultados = pd.DataFrame(resultados, columns=columns)
     resultados.to_csv("./results_regression/resultados.csv", index=False)
