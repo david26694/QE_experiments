@@ -37,12 +37,7 @@ from utils_custom import *
 from tabulate import tabulate
 
 
-# In[27]:
-
-
 # Check directories
-
-
 directory = "./results_regression/pickle"
 if not os.path.exists(directory):
     os.makedirs(directory)
@@ -256,7 +251,7 @@ for i, data_i in enumerate(data):
 
             # Train model
             enet_te, enet_te_grid_results, enet_te_params = fit_pipe(
-                pipe, pipe_grid, X_tr, y_tr
+                pipe, pipe_grid, X_tr, y_tr, n_jobs=n_jobs, cv=cv
             )
 
             results_dict[data_i][learner_name][encoder_name][
