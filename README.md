@@ -4,7 +4,6 @@
 ### To do 
  - Results visualizations
 
- 
 ### Done 
  - Refactor 
  - Global seed (easy) 
@@ -14,15 +13,18 @@
 
 ### To Do 
  - Rethink trees and splits: (Carlos) He intentado ponerlos side by side, pero no termina de convencerme.
-        - Smaller trees / zoom in and see splits - (C) se supone que si le das zoom con el formato EPS se puede ver todo.
-        - Ponerlo en otro sitio
-        - Usar mas variables
+    - Smaller trees / zoom in and see splits - (C) se supone que si le das zoom con el formato EPS se puede ver todo.
+    - Ponerlo en otro sitio
+    - Usar mas variables
    
  - Merge hyperparameters and regularization
  
  - Add bibliography
- 
- - Describe datasets
- 
- - Write results
+
+ - Results
+    - MAE vs MSE
+    - QE vs TE
+    - QE Features
+    
  ### Done 
+ - Describe datasets
