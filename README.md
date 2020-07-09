@@ -17,7 +17,7 @@
     - Ponerlo en otro sitio
     - Usar mas variables
    
- - Merge hyperparameters and regularization
+ - Merge hyperparameters and regularization - (C) no me parece tan redundante, son dos cosas diferentes: formalizacion e hiperparametros, no?
  
  - Add bibliography
 
