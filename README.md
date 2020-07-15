@@ -20,6 +20,8 @@
  - Merge hyperparameters and regularization - (C) no me parece tan redundante, son dos cosas diferentes: formalizacion e hiperparametros, no?
  
  - Add bibliography
+ 
+ - Experimentation pipeline, mejor visualizacion
 
  - Results
     - MAE vs MSE
