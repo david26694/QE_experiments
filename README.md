@@ -35,5 +35,5 @@
 
  ### Done
  - Describe datasets
- - Merge hyperparameters and regularization - (C) no me parece tan redundante, son dos cosas diferentes: formalizacion e hiperparametros, no?
+ - Merge hyperparameters and regularization
 
