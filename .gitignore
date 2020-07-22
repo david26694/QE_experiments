@@ -124,3 +124,5 @@ catboost_info
 
 # vectorized images
 *.eps
+.Rproj.user
+*.Rproj
