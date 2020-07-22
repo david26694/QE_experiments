@@ -126,3 +126,4 @@ catboost_info
 *.eps
 .Rproj.user
 *.Rproj
+.Rhistory
