@@ -4,7 +4,7 @@ library(tidyr)
 
 theme_set(theme_minimal())
 
-cv_results <- read.csv('results_regression/cv_results.csv')
+cv_results <- read.csv('results_regression/cv_results_v0.csv')
 
 cv_long <- cv_results %>% 
   pivot_longer(
