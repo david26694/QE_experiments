@@ -22,6 +22,7 @@ from sktools import QuantileEncoder, TypeSelector
 from lightgbm import LGBMRegressor
 from category_encoders.m_estimate import MEstimateEncoder
 from tabulate import tabulate
+from pathlib import Path
 
 from utils import elapsed_time_mins, fit_pipe, compare_results, SummaryEncoder
 from constants import data, keep, drop, cols_enc, target, columns
@@ -140,6 +141,21 @@ for i, data_i in enumerate(data):
             results_dict[data_i][learner_name][encoder_name][
                 "test_mse"
             ] = mean_squared_error(y_te, enet_te.predict(X_te))
+
+            cv_results = results_dict[data_i][learner_name][encoder_name][
+                "grid_results"
+            ]
+
+            cv_results['learner'] = learner_name
+            cv_results['encoder'] = encoder_name
+            cv_results['data'] = data_i
+
+            csv_file = Path('results_regression', 'cv_results.csv')
+
+            if csv_file.exists():
+                cv_results.to_csv(csv_file, mode='a', header=False, index=False)
+            else:
+                cv_results.to_csv(csv_file, index=False)
 
             print(
                 tabulate(
