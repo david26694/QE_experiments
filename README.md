@@ -16,9 +16,7 @@
     - Smaller trees / zoom in and see splits - (C) se supone que si le das zoom con el formato EPS se puede ver todo.
     - Ponerlo en otro sitio
     - Usar mas variables
-
- - Merge hyperparameters and regularization - (C) no me parece tan redundante, son dos cosas diferentes: formalizacion e hiperparametros, no?
-
+ 
  - Add bibliography
 
  - Experimentation pipeline, mejor visualizacion
@@ -37,3 +35,5 @@
 
  ### Done
  - Describe datasets
+ - Merge hyperparameters and regularization
+

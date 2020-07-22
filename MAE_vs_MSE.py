@@ -132,7 +132,13 @@ for i, data_i in enumerate(data):
                 ]
             )
 
-            pipe_grid = {}
+            if "MEstimateEncoder" in str(encoder):
+                pipe_grid = {"enc__m": [0, 1, 10, 50]}
+            else:
+                pipe_grid = {
+                    "enc__m": [0, 1, 10, 50],
+                    "enc__quantile": [0.25, 0.50, 0.75],
+                }
 
             # Train model
             enet_te, enet_te_grid_results, enet_te_params = fit_pipe(
@@ -221,4 +227,4 @@ for i, data_i in enumerate(data):
 
 
 resultados = pd.DataFrame(resultados, columns=columns)
-resultados.to_csv("./results_regression/resultados.csv", index=False)
+resultados.to_csv("./results_regression/results_MAEvsMSE.csv", index=False)
