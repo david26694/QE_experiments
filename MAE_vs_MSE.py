@@ -142,7 +142,14 @@ for i, data_i in enumerate(data):
 
             # Train model
             enet_te, enet_te_grid_results, enet_te_params = fit_pipe(
-                pipe, pipe_grid, X_tr, y_tr, n_jobs=-1, cv=cv
+                pipe,
+                pipe_grid,
+                X_tr,
+                y_tr,
+                n_jobs=-1,
+                cv=cv,
+                subsample=True,
+                n_max=20_000,
             )
 
             results_dict[data_i][learner_name][encoder_name][
@@ -189,7 +196,7 @@ for i, data_i in enumerate(data):
             pd.DataFrame(
                 results_dict[data_i][learner_name][encoder_name]["grid_results"]
             ).to_csv(
-                "./results_regression/grid_results/{}_{}.csv".format(
+                "./results_regression/grid_results/MAEvsMSE{}_{}.csv".format(
                     f"{learner_name}_{encoder_name}_grid_results", data_i[5:10]
                 )
             )

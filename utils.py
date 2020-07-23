@@ -30,8 +30,11 @@ def fit_pipe(
 ):
     y = np.ravel(y.copy())
     if subsample:
-        X = X[0:n_max]
-        y = y[0:n_max]
+        X_sampled = X[0:n_max]
+        y_sampled = y[0:n_max]
+    else:
+        X_sampled = X
+        y_sampled = y
 
     # Instantiate the grid
     pipe_cv = GridSearchCV(
@@ -42,7 +45,7 @@ def fit_pipe(
         scoring="neg_mean_absolute_error",
     )
 
-    pipe_cv.fit(X, y)
+    pipe_cv.fit(X_sampled, y_sampled)
 
     best_estimator = pipe_cv.best_estimator_.fit(X, y)
     grid_results = pd.DataFrame(pipe_cv.cv_results_)

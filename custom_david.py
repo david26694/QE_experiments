@@ -15,11 +15,13 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import ElasticNet
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV, RepeatedKFold, train_test_split
-from scipy.stats import wilcoxon
+from sklearn.model_selection import RepeatedKFold, train_test_split
+from lightgbm import LGBMRegressor
+
 
 from sktools import QuantileEncoder, TypeSelector
-from lightgbm import LGBMRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
 from category_encoders.m_estimate import MEstimateEncoder
 from tabulate import tabulate
 from pathlib import Path
@@ -86,13 +88,13 @@ for i, data_i in enumerate(data):
     # Elastic Net + target encoding
     scaler = StandardScaler()
     lm = ElasticNet()
-    lgbm = LGBMRegressor(verbose=-1)
+    rf = LGBMRegressor(n_estimators=50)
     te = MEstimateEncoder(cols=cols_enc[i])
     pe = QuantileEncoder(cols=cols_enc[i], quantile=0.50)
     se = SummaryEncoder(cols=cols_enc[i], quantiles=[0.25, 0.50, 0.75], m=100)
 
-    encoders = {"te": te, "pe": pe, "se": se}
-    learners = {"lm": lm, "lg": lgbm}
+    encoders = {"te": te, "pe": pe}
+    learners = {"lm": lm, "rf": rf}
 
     for learner_name, learner in learners.items():
 
@@ -113,11 +115,18 @@ for i, data_i in enumerate(data):
                 ]
             )
 
+            if "MEstimateEncoder" in str(encoder):
+                pipe_grid = {"enc__m": [0, 1, 10, 50]}
+            else:
+                pipe_grid = {
+                    "enc__m": [0, 1, 10, 50],
+                    "enc__quantile": [0.25, 0.50, 0.75],
+                }
             pipe_grid = {}
 
             # Train model
             enet_te, enet_te_grid_results, enet_te_params = fit_pipe(
-                pipe, pipe_grid, X_tr, y_tr, n_jobs=-1, cv=cv
+                pipe, pipe_grid, X_tr, y_tr, n_jobs=-1, cv=cv, subsample=True
             )
 
             results_dict[data_i][learner_name][encoder_name][
@@ -146,14 +155,14 @@ for i, data_i in enumerate(data):
                 "grid_results"
             ]
 
-            cv_results['learner'] = learner_name
-            cv_results['encoder'] = encoder_name
-            cv_results['data'] = data_i
+            cv_results["learner"] = learner_name
+            cv_results["encoder"] = encoder_name
+            cv_results["data"] = data_i
 
-            csv_file = Path('results_regression', 'cv_results.csv')
+            csv_file = Path("results_regression", "cv_results.csv")
 
             if csv_file.exists():
-                cv_results.to_csv(csv_file, mode='a', header=False, index=False)
+                cv_results.to_csv(csv_file, mode="a", header=False, index=False)
             else:
                 cv_results.to_csv(csv_file, index=False)
 
@@ -205,14 +214,14 @@ for i, data_i in enumerate(data):
             results_dict[data_i]["lm"]["pe"]["test_mae"],
             results_dict[data_i]["lm"]["pe"]["train_mse"],
             results_dict[data_i]["lm"]["pe"]["test_mse"],
-            results_dict[data_i]["lg"]["te"]["train_mae"],
-            results_dict[data_i]["lg"]["te"]["test_mae"],
-            results_dict[data_i]["lg"]["te"]["train_mse"],
-            results_dict[data_i]["lg"]["te"]["test_mse"],
-            results_dict[data_i]["lg"]["pe"]["train_mae"],
-            results_dict[data_i]["lg"]["pe"]["test_mae"],
-            results_dict[data_i]["lg"]["pe"]["train_mse"],
-            results_dict[data_i]["lg"]["pe"]["test_mse"],
+            results_dict[data_i]["rf"]["te"]["train_mae"],
+            results_dict[data_i]["rf"]["te"]["test_mae"],
+            results_dict[data_i]["rf"]["te"]["train_mse"],
+            results_dict[data_i]["rf"]["te"]["test_mse"],
+            results_dict[data_i]["rf"]["pe"]["train_mae"],
+            results_dict[data_i]["rf"]["pe"]["test_mae"],
+            results_dict[data_i]["rf"]["pe"]["train_mse"],
+            results_dict[data_i]["rf"]["pe"]["test_mse"],
             # Shape
             df.shape,
             # params
