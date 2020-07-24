@@ -22,7 +22,7 @@
  - Experimentation pipeline, mejor visualizacion
 
  - Results
-    - MAE vs MSE: Carlos -> explicar + m=0, 1, 2
+    - MAE vs MSE: Carlos -> explicar + m=0, 1, 2 -> Falta un gráfica mas mona
     - QE vs TE -> wilcoxon, cv distributions, etc.
     - QE Features
 
