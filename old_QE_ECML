@@ -1,0 +1,524 @@
+%%%%%%%%%%%%%%%%%%%%%%% file template.tex %%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% This is a general template file for the LaTeX package SVJour3
+% for Springer journals.          Springer Heidelberg 2010/09/16
+%
+% Copy it to a new file with a new name and use it as the basis
+% for your article. Delete % signs as needed.
+%
+% This template includes a few options for different layouts and
+% content for various journals. Please consult a previous issue of
+% your journal as needed.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% First comes an example EPS file -- just ignore it and
+% proceed on the \documentclass line
+% your LaTeX will extract the file if required
+% \begin{filecontents*}{example.eps}
+% %!PS-Adobe-3.0 EPSF-3.0
+% %%BoundingBox: 19 19 221 221
+% %%CreationDate: Mon Sep 29 1997
+% %%Creator: programmed by hand (JK)
+% %%EndComments
+% gsave
+% newpath
+%   20 20 moveto
+%   20 220 lineto
+%   220 220 lineto
+%   220 20 lineto
+% closepath
+% 2 setlinewidth
+% gsave
+%   .4 setgray fill
+% grestore
+% stroke
+% grestore
+% \end{filecontents*}
+%
+\RequirePackage{fix-cm}
+%
+%\documentclass{svjour3}                     % onecolumn (standard format)
+%\documentclass[smallcondensed]{svjour3}     % onecolumn (ditto)
+\documentclass[smallextended]{svjour3}       % onecolumn (second format)
+%\documentclass[twocolumn]{svjour3}          % twocolumn
+%
+\smartqed  % flush right qed marks, e.g. at end of proof
+%
+\usepackage{balance}       % to better equalize the last page
+%\usepackage{graphics}      % for EPS, load graphicx instead 
+\usepackage{float} 
+%\usepackage{caption}
+%\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{multirow}
+% \usepackage{mathptmx}      % use Times fonts if available on your TeX system
+%
+% insert here the call for the packages your document requires
+%\usepackage{latexsym}
+% etc.
+%
+% please place your own definitions here and don't use \def but
+% \newcommand{}{}
+%
+% Insert the name of "your journal" with
+% \journalname{myjournal}
+%
+\begin{document}
+
+%\title{Quantile Encoder}
+\title{Tackling High Cardinality Categorical Features in Regression Problems with Quantile Encoders}
+
+\titlerunning{Quantile Encoder}        % if too long for running head
+
+
+\author{Carlos Mougan       \and
+        David Masip \and 
+        Jordi Nin \and
+        Oriol Pujol
+}
+
+%\authorrunning{Short form of author list} % if too long for running head
+
+\institute{\\
+            Carlos Mougan \\
+            Directorate of Statistics, European Central Bank
+                \email{carmougan@gmail.com}\\
+            \and
+            David Masip \\
+            Centre Recerca Matematica - Universitat Autonoma de Barcelona
+                \email{david26694@gmail.com }\\
+            \and
+            Oriol Pujol \\
+              Department of Mathematics and Computer Science - Universitat de Barcelona, Spain \\
+              \email{oriol\_pujol@ub.edu}\\       
+           \and
+           Jordi Nin \\\
+              Department of Operations, Innovation and, Data Sciences - Universitat Ramon Llull, ESADE \\
+            \email{jordi.nin@esade.edu}
+}
+
+
+\date{
+%Received: date / Accepted: date
+}
+% The correct dates will be entered by the editor
+
+
+\maketitle
+
+\begin{abstract}
+% Option 1
+  %In this paper, we provide an analyisis, an implementation, and the results of tackling high cardinality categorical features in tabular data regression datasets with the quantile. The Quantile Encoder outperforms consistently the traditional statistical mean target encoder. To deal with the overfitting for categories with few examples, the Quantile Encoder can benefit from shrinkage to avoid it. We give empirical evidence on public datasets of the achievements of this method against the state of the art statistical encoding techniques. We also provide support for which metrics yield better results and provide a quantitative analysis of the results. Finally, we create a set of features with different quantiles that provide more information about the categorical feature in question making a performance boost of the models.
+  
+% Option 2
+%In this paper, we provide a thorough analysis when tackling high cardinality features in regression problems with the Quantile Encoder. 
+
+Regression problems have been widely studied in machine learning literature resulting in a plethora of regression models and performance measures. However, there are few techniques specially dedicated to solve the problem of how to incorporate categorical features to regression problems. Usually, categorical features encoders are general enough to cover both classification and regression problems. This lack of specificity results in underperforming regression models. In this paper, we provide an in-depth analysis of how tackling high cardinality categorical features with the quantile. Our proposal outperforms the traditional statistical mean target encoder when considering the Mean Absolute Error, especially in the presence of long-tailed or skewed distributions. Besides, to deal with possible overfitting when there are categories with small support, our encoder benefits from additive smoothing. Finally, we describe how to expand the encoded values by creating a set of features with different quantiles. This expanded encoder provides a more informative output about the categorical feature in question, further boosting the performance of the regression model.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+During the modeling stage of a machine learning prediction problem, there is the need of feeding the model with meaningful features that describe the problem in a relevant way intending to improve the learning process. That is why the steps of data preparation and feature engineering are crucial in any machine learning project life cycle~\cite{mle,hands-on}.
+
+Recently, the amount of available data has largely increased. This effect produces an increment in the variety of available features. For the specific case of categorical variables this increment has two different effects: (a) the quantity of features is larger, and (b) the number of distinct values found in each feature (cardinality) increases \cite{weworkEncoding}. When facing this second scenario, the problem of representing categorical features effectively and efficiently has a relevant effect on the performance of machine learning model. 
+
+Handling categorical features is a known and very common problem in data science and machine learning, given that many algorithms need to be fed with numerical data~\cite{tutz_2011}. There are many well-known methods for approaching this problem~\cite{Pargent:2019}. However, depending on the kind of problem faced, namely classification or regression problems, some of the techniques for encoding categorical data are more suitable than others. This is particularly true when dealing with large scale data where errors and outliers are more common and may hinder the computation of reliable statistical measures. 
+%In machine learning literature, classification problems gain most of the attention, leaving sometimes regression problems left aside, even though in many domains is utterly important. When dealing with large scale data, errors and outliers tend to appear in the data, making some statistical metrics less reliable.
+
+Probably, the most well-known encoding for categorical features with low cardinality is One Hot Encoding \cite{one_hot}. One Hot Encoding creates orthogonal and equidistant vectors per different categories. When dealing with high cardinality variables, one hot encoding suffers from several shortcomings \cite{catFeatBayesian}: (a) the dimension of the input space increases with the cardinality of the encoded variable, (b) the created features are sparse and in many cases, most of the encoded vectors hardly appear in the data, and (c) One Hot Encoding does not handle new and unseen categories.
+
+Another frequently used encoding technique is Label/Ordinal Encoding \cite{ordinal} which uses a single column of integers to represent the different categorical values. These are assumed to have no true order and integers are selected at random. This encoding handles the problem of the high dimensionality encoding found in One Hot Encoding but imposes an artificial order of the categories. This makes it harder for the model to extract meaningful information. For example, when using a linear model, this effect will make the algorithm difficult to assign a high coefficient to this feature.
+
+Alternatively, Target Encoding (or mean encoding) \cite{high-cardinality-categorical} works as an effective solution to overcome the issue of high cardinality. In target encoding, categorical features are replaced with the mean target value of each respective category. With this technique, the high cardinality problem is handled and categories are ordered allowing for easy extraction of the information and model simplification. The main drawback of Target Encoding appears when categories with few (even only one) samples are replaced by values close to the desired target of those samples. This makes the model over-trust the target encoded feature making it prone to overfitting. To overcome this problem several strategies in the literature involve regularizing the target estimator \cite{high-cardinality-categorical}. A possibility is to use an estimator with additive smoothing, such as the M-Estimator, to estimate each category mean.
+
+Even though the techniques described before work for both regression and classification techniques, most of the literature found focuses on the binary classification tasks although the meaningful statistics of a binary classification are not well suited for other prediction tasks such as regression or multi-class classification. For example, when dealing with supervised learning regression tasks, calculating the target mean can give a misleading representation of the category due to the statistical properties of the mean if the data shows heavy tails. 
+
+A reasonable change in this last scenario would be the use of other summary statistics more suited to the target distribution. However, to the best of our knowledge, there is no previous research done in the field of using other aggregation statistics than the mean. In this paper, we study the use of the quantile as a better and more flexible summarizing value on the regression tasks, when measuring the Mean Absolute Error in high cardinality datasets, and in front of skewed and long-tailed distributions. We additionally introduce a regularization strategy to avoid over-representation of the encoded feature when the statistic is computed over a small target subset of data. We additionally, introduce a richer extension of the studied encoder, namely target summaries, that consists of a discrete set of the basic quantile encoder with different hyperparameter values. 
+
+The strategy is evaluated in different regression scenarios including the presence of outliers, long-tailed, and skewed distributions. We summarize the main contributions of this paper as follows:
+\begin{itemize}
+\item We define the quantile encoder. This encoder improves the performance of a regression model when evaluated using the Mean Absolute Error. It is also remarkable that the Mean Absolute Error can be improved even when using a different target loss, such as least squares loss. %Least absolute deviations losses are often harder to optimize, and by using the quantile encoder one can improve the mean absolute error without the need of optimizing the least absolute deviation loss.
+\item We show that the quantile encoder improves the performance of regression problems when the distribution of the target is long-tailed. %In those cases, the mean does not provide an estimate of any likely value, and using the median gives more relevant information of a given category.
+\item Finally, we introduce the idea of summary encoder, an encoder designed for creating effective and richer encodings. Here, we build it by computing several quantiles giving a more complete description of the target distribution.  % of the allows computing several quantiles, which cannot be done by using the mean encoder. This can inform the model about the full distribution of the target on a given category, giving richer features for the model to learn and improve its performance.
+\end{itemize}
+
+For the sake of reproducibility and to help with the development, experimentation, and testing of the methods used in this paper, we release an open-sourced python package containing the implementations used for this paper. We refer to this package as \emph{sktools} \cite{sktools}.
+
+The rest of this article is organized as follows. Section \ref{sec:problem_definition} presents a formal definition of the proposed encoding type. During Section \ref{sec:experimentAndResults} the benchmarking datasets, experimental settings, results, and their corresponding discussion are shown. Finally, in Section \ref{sec:conclusion} the main conclusions of the paper are summarized and possible future ways of work.
+
+%\begin{figure*}
+%	\centering
+%	\begin{minipage}{\columnwidth}
+%		\centering
+%		\includegraphics[width=\textwidth]{images/tree_ohe.eps}
+%		\caption{Decision Tree split plot with one hot encoding}
+%    \label{fig:dt_ohe}
+%	\end{minipage}%
+%	\begin{minipage}{\columnwidth}
+%		\centering
+%		\includegraphics[width=\textwidth]{images/tree_te.eps}
+%		\caption{Decision Tree split plot with mean target encoding}
+ %   \label{fig:dt_te}
+%	\end{minipage}
+%\end{figure*}
+
+
+%In Figure \ref{fig:dt_ohe} we can see the structure of a regression decision tree with maximum depth limited, trained with the StackOverflow dataset (\ref{sec:datasets}) with just the two most important categorical features one-hot encoded.  
+
+%For Figure \ref{fig:dt_te} we can see the structure of a regression decision tree trained with the StackoverGlow dataset with just the two most important categorical features encoded with the mean of the target. Comparing with Figure \ref{fig:dt_ohe} we can see that the tree structure seems more organized and less biased, with target encoding the decision tree needs less depth, thus less complexity and provides better results in a more healthy algorithmic structure.
+
+%\section{Problem Statement}
+
+%The problem that we aim to tackle is the improvement of the encoding of categorical variables in regression models. Target encoding with the mean is a valid approach, but not necessarily the most suitable. This paper discusses an alternative solution based on using the target distribution quantiles to ensure a better encoding of categorical variables.
+
+
+%Let us assume a set of data pairs $X = \{x_i,x_{Di} ,t_i\}$ for $i = 1, ..., M$, where the $x_i$ are D-dimensional numerical data points, $x_{Di}$ are d-dimensional categorical data points and $t_i$ their corresponding labels. In the case of a regression problem, we assume these labels to be such that $t_i \in [{0,\mathbb{R}]}$. We define a regressor as a function $f : x \rightarrow t$ from input instances to targets.
+
+
+\section{Quantile encoder}\label{sec:problem_definition}
+
+The problem that we aim to tackle is the improvement of the encoding of categorical variables in regression models. Target encoding with the mean is a valid approach, but not necessarily the most suitable. Target encoding can be easily generalized by replacing the mean with any other summarizing statistic. Thus, following a similar strategy to mean encoding, here we generalize the definition of Target encoding studying the use of the quantile as a summarizing encoding metric in the different categories.
+
+
+%This paper discusses an alternative solution based on using the target distribution quantiles to ensure a better encoding of categorical variables.
+
+
+
+Formally, Quantile encoding is defined as follows: Given a dataset $\mathcal{D}=\{(x_i,y_i)\}, i\in 1\dots N$ with $x_i$ a $d$-dimensional feature vector, $y_i$ its corresponding label, we identify the $j-th$ feature from sample $x_i$ as $x_i^{(j)}$. For the following discussion we consider feature $j-th$ a categorical variable with $K$ different values. The quantile encoder replaces that feature as follows
+
+\begin{equation}
+\label{eq:quantile}
+    \hat{x}_i^{(j)} = q_p(\{y_k\}) ,\quad \forall \; (x_k,y_k)\in \mathcal{D} \big| \; x_k^{(j)} = x_i^{(j)}, 
+\end{equation}
+
+where $q_p$ is the quantile at $p$. Equation \ref{eq:quantile} assigns the $p$ quantile of all targets that share the same categorical value for that feature.
+
+A common issue when using target-based encodings such as mean encoding or the quantile encoding is not having enough statistical mass for some of the encoded categories. And, therefore, this creates features that are very close to the target label. Thus, they are prone to over-fitting. A possible solution is to regularize the target encoding feature using additive smoothing, as in \cite{mestimator,wiki:additive-smoothing}.  To do so, we compute the quantile encoding using the following equation: 
+
+
+%\subsubsection{Regularization}\label{sec:regularization}
+
+\begin{equation}
+\label{eqn:mestimate}
+\tilde{x}^{(j)}_i = \frac{\hat{x}^{(j)}_i \cdot n_i + q_p(\{y\}) \cdot m }{n_i + m}
+\end{equation}
+where,
+\begin{itemize}
+    \item $\tilde{x}^{(j)}_i$ is the regularized Quantile Encoder applied to the value corresponding to element $x_i^{(j)}$.
+    \item $\hat{x}^{(j)}_i$ is the non-regularized Quantile Encoder; the value corresponding to element $x_i^{(j)}$ as defined in Equation \ref{eq:quantile}. 
+    \item $n_i$ is the number of samples sharing the same value as $x_i^{(j)}$.
+    \item $q_p(\{y\})$ is the global p-quantile of the target.
+    \item $m$ is a regularization parameter, the higher $m$ the more the quantile encoding feature tends to the global quantile. It can be interpreted as the number of samples needed to have the local contribution (quantile of the category) equal to the global contribution (global quantile).
+\end{itemize}
+
+The rationale of Equation \ref{eqn:mestimate} is that, if a class has very few samples, $n_i \ll m$ then the quantile encoding will basically be the global quantile, $\tilde{x}^{(j)}_i \approx q_p(\{y\})$. If a class has lots of samples, $n_i \gg m$ and $\tilde{x}^{(j)}_i \approx \hat{x}_i^{(j)}$ then the class quantile will have more weight than the global quantile.
+
+In general, the quantile encoding is a weighted mean between the quantile of the category and the global quantile, where the quantile of the category is given more importance when that category has more samples.
+
+As a result, the Quantile Encoder transformation of categorical features has two different hyperparameters that can be tuned to increase, adjust, and modify the type of encoding. These are the following:
+
+\begin{itemize}
+    \item $m$ is a regularization hyperparameter. The range of this parameter is $m \in [0, \infty)$. For the specific case where $m=0$, there is no regularization. The larger the value of $m$, the most the Quantile Encoder features tends to the global quantile. %Its default value in the sktools library \cite{sktools}  is $m=1$.
+    
+    \item $p$ is the value of the quantile of the target probability distribution. The range of this parameter is $p \in [0, 1]$. When $p$ is 0.5, we obtain the median encoder, as it applies $q_{0.5}$, the median of the target in each category.% Its default value in the sktools library  \cite{sktools} is $p=0.5$.
+\end{itemize}
+
+\subsection{Summary encoder}
+
+A straightforward generalization of the quantile encoder is to compute several features corresponding to different quantiles per each categorical feature, instead of a single feature. This allows the model to have broader information about the target distribution for each value of that feature than just a single value. This richer representation will be referred to as {\it summary encoder}. Formally, it is defined as
+
+\begin{equation}
+%\label{eq:quantile}
+    \hat{x}_i^{(j)} = \{q_{p_m}(\{y_k\})\} ,\quad \forall \; (x_k,y_k)\in \mathcal{D} \big| \; x_k = x_i^{(j)}, \; m=1\dots M 
+\end{equation}
+
+
+where $M$ is the number of new features, and $p_m$ are the values of the quantiles to use. This representation changes a single feature by a set of $M$ quantiles according to the values in $p_m$.
+
+\section{Experiments}\label{sec:experimentAndResults}
+
+To perform a complete empirical evaluation of the proposed statistical encoding techniques, we developed a framework to ensure that all experiments described in this paper are fully reproducible. Original data, data preparation routines, code repositories, and methods are publicly available at \cite{qe_experiments}. Experiments have been organized into three groups: Firstly, we assess the performance of quantile encoder when compared with other alternative encodings, namely catboost, M-estimate, target, and ordinal encoder. To do this comparison we used the Mean Absolute Error. In the second group of experiments, we aim at showing the dependence of the encoding on the evaluation metric. To that effect, we study the performance of the quantile encoder when used with a least-squares loss model in terms of mean absolute error and mean squared error. Finally, we compare summary encoder with quantile and target encoders, the goal of these last experiments is to create more informative encoders able to boost the performance of regression algorithms.
+
+\subsection{Dataset bench-marking}\label{sec:datasets}
+
+Due to the specificity of our requirements: regression problems and categorical features with high cardinality, we could not make use of traditional machine learning datasets for classification. Following the open data for reproducible research guidelines described in \cite{turing} and for measuring the performance of the proposed methods, we have used a synthetic dataset for a more theoretical evaluation together with 4 open-source datasets for an empirical comparison. The selected datasets are:
+
+\begin{itemize}
+    \item \textit{The StackOverflow 2018 Developer survey}\label{dataset:StackOverflow2018} \cite{so2018} is a data set with only five categorical features and a target variable (\textit{converted\_salary}) with a high data skewness. The target variable is the converted salary annually that a certain user earns. It has only categorical features as the country, employment status, formal education, developer type, and languages worked with.
+    
+    \item \textit{The StackOverflow 2019 Developer survey}\label{dataset:so2019} \cite{so2019} is a data set with a single categorical feature, few numerical features and a long-tailed target variable (\textit{converted\_salary}). The numeric features are working week hours, years of coding, and age, and the only categorical feature is the country.
+    
+    \item \textit{Kickstarter Projects} \cite{ksdata} is a data set with crowd-funding projects where the goal is to predict what is the funding goal of each project. The categorical features are the crowd-funding type, the country, the state, and the currency.
+    
+    \item \textit{Medical Payments} \label{dataset:medical} is a data set with information about the price of a medical treatment. The dataset consists of 10 categorical features containing information about the state, city, zip code, country, physician type, physician country, the payment method, and its nature.
+\end{itemize}
+
+The datasets have undergone a minimal curation process, where miscellaneous features are removed and only the columns that are considered meaningful and informative for the modeling of the problem are kept. 
+
+For the synthetic dataset we have used the Cauchy distribution [\ref{eqn:cauchy}] to create a target distribution with long tails. The Cauchy distribution is parameterized by $t$ and $s$, being $t$ the location parameter and $s$ the scale parameter. The density function of the Cauchy distribution is as follows,
+
+\begin{equation}
+\label{eqn:cauchy}
+    f(x) = \frac{1} {s\pi(1 + ((x - t)/s)^{2})}
+\end{equation}
+
+In particular, we've created two features, $x_1$ and $x_2$, and generated $y$ using
+
+$$
+y = x_1 + x_2 + \epsilon
+$$
+
+where $\epsilon \sim N(0, 1)$. $x_1$ is generated using the following sampling algorithm:
+
+$$
+center_i \sim U(0, 100)
+$$
+$$
+x_1 \sim Cauchy(center_i, 1)
+$$
+
+And $x_2$ using the same algorithm but the Cauchy distribution has scale $s = 2$. $y$ is generated using the generative process mentioned above and is modeled by only using the centers of $x_1$ and $x_2$. Both feature even if numerical are treated as categorical variables. 
+
+
+%\subsection{Experimental setup}\label{sec:experimentalsetup}
+
+
+%The experiments on the datasets have been performed following the same methodology and go along with the same transformation pipeline.
+
+%\begin{figure}[H]
+%    \centering
+%    \includegraphics[width=0.4\textwidth]{images/methodology.png}
+%    \caption{Experimental Methodology}
+%    \label{fig:methodology}
+%\end{figure}
+
+%In the organigram of figure \ref{fig:methodology}, several steps are performed to every dataset. All pipeline operators make use of existing implementations from sklearn, except the encoders that come either from category encoders \cite{category_encoders} library or sktools \cite{sktools}. For further reading on these operators' steps, refer to the scikit-learn online documentation and the sktools online documentation \cite{sktools}.
+
+%\textbf{Cross Validation. } For the Cross-Validation and evaluation of results we are applying "Repeated K-Fold" \cite{scikit-learn}, which splits the train and test K-fold "n" times with different randomization in each repetition. As a setting, we are using 4 folds ($K=4$) repeating it 3 times ($n=3$).
+
+%\textbf{Scaler. } This step contains the standard scaling operator that uses the sample mean and variance to scale the features (StandardScaler).
+%, a robust scaling operator that uses the sample median and inter-quartile range to scale the features (RobustScaler),
+
+%\textbf{Encoder.} For this pipeline step two methods are compared, m-estimator target encoder, that accepts the parameter `$m$', whose statistical effect is similar to the one described in equation \ref{eqn:mestimate} and it is imported from the category encoders library \cite{category_encoders}. The other method is this paper contribution, Quantile Encoder,  that accepts to parameters `$m$' and the statistical quantile that we want to map our categorical features  `$q$', imported from the sktools library \cite{sktools}. 
+
+%\textbf{Estimators.} For this paper, we focus on supervised learning models, more specifically in Generalized Linear Models (Elastic Net), even though some experiments (Partial Dependence Plots) are done with a Random Forest Regressor.
+
+%\textbf{Model comparison.} Wilcoxon signed-rank test has been used to compare the results of different models. This test is suitable since our samples are paired (the same cross-validation scheme is used in each pipeline), and it doesn't assume anything about the data. This is inspired by \cite{comparingClassifiers}.
+%\subsection{Experimental set-up}
+
+
+
+%The following subsections detail the experiments and the corresponding results.
+
+\subsection{Code and reproducibility}
+
+For the sake of reproducibility, the code in the experiments has been encapsulated in a library, \emph{sktools} \cite{sktools}. This library can be found \href{https://sktools.readthedocs.io/}{https://sktools.readthedocs.io/}. The library contains the implementations presented in this paper such as Quantile Encoder regularized with an additive smoothing and the Summary Encoder. The notebook labs and experiments are hosted on the following \href{https://github.com/david26694/QE\_experiments}{Github repository} \cite{qe_experiments}. 
+
+With respect to quantile encoder the default values for $m$ and $p$ are $m=1$ and  $p=0.5$. Default values for the hyperparameters of the summarizing encoder are $m=100$ and defines three encoding features containing the quantiles at $0.4, 0.5$ and $0.6$.
+
+
+\subsection{Comparison of all encoding methods}
+
+This first experiment consists of comparing the performance of the quantile encoder against state-of-the-art encoding techniques in terms of the Mean Absolute Error (MAE). To do so, we have used the methods implemented in the Category Encoders library \cite{category_encoders} to evaluate them against our proposed encoding technique. This set of encoding techniques includes ordinal encoding and several state of the art target encodings with different regularization values such as catboost \cite{catboost-encoder}, classical target encoder \cite{high-cardinality-categorical,category_encoders} and M-estimate target encoding \cite{mestimator}. Every experiment has been executed using 3 times repeated 4-fold cross-validation on the parameters of each method. 
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/clean_images/lm_categorical_compare.png}
+    \caption{Comparison between Quantile Encoder and several categorical encoding techniques using the cross validated MAE error.}
+    \label{fig:categories}
+\end{figure}
+
+Figure \ref{fig:categories} shows the results of the comparison on the 3 times repeated 4-fold cross-validation sets for the aforementioned datasets. Observe that on average, the quantile encoder achieves the best scores, followed by catboost.In all datasets, Quantile Encoder performs in the worst-case scenario similar to other state-of-the-art techniques, however, in three out of five cases it produces a solid improvement of the Mean Absolute Error. As expected, ordinal encoder yields the worst performance in these experiments. Even though label encoder is taught in many Machine Learning courses \cite{labelEncodingCoursera,labelEncodingMedium} as a first approach to encoding categorical features, is the worst-performing encoding technique of all, downgrading the performance of the model in some cases even reaching to 200\% of Mean Absolute Error. 
+
+
+%\textcolor{red}{No se que aporta el siguiente parrafo... En todas las figuras el quantile mejora... que tiene esta en particular? Looking at a particular example, as the dataset of StackOverflow (last chart), we can see the improvement of encoding categorical features with the quantile. Quantile Encoder achieves the best Mean Absolute Error, followed by catboost encoding. This denotes that the quantile is a better aggregation statistic than the mean for the purpose of using a linear model. This leaves open the question of, will a better regularization technique allows us to extract more information when using the quantile?}
+
+\begin{figure}%[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images/hyperparameters_contour.eps}
+    \caption{Performance of hyperparameters for Quantile Encoder StackOverflow developer survey 2019}
+    \label{fig:contour}
+\end{figure}
+
+One of the advantages of using the quantile to encode categorical features over the mean encoding is that it allows us to have one more tunable hyperparameter. To grasp this difference, we plotted Figure \ref{fig:contour}, for the best performing dataset (StackOverflow 2019 Developer survey) using linear regression as an estimator. The contour plot \cite{wiki:contour} displays the Mean Absolute Error for different values of the quantile value and the regularization parameter. Observe that the optimal quantile is not the median {\em i.e.} $quantile=50$, but $quantile=20$. This gives larger versatility to the encoder allowing for the extraction of more meaningful information than with the mean or the median. %It is important to highlight that hyperparameter optimization is heavily dependent on the task in question, so changing the dataset or the encoded features have an impact on the optimization space. 
+
+\subsection{Dependence of the encoding with respect to the evaluation metric}
+
+When evaluating machine learning regression models, the following natural question arises \textit{For which metrics does the encoding technique give an improvement with respect to the alternatives?}
+
+It is well-known that the mean is the estimator that minimizes the Mean Squared Error (MSE), meanwhile for the Mean Absolute Error is the median. The previous statement supports the hypothesis that the median encoder may improve the performance of any regression model when it is measured with the MAE. To provide empirical evidence we evaluate mean and quantile encoders in front of MAE and MSE evaluation metrics. It is important to highlight that MAE error has one advantage versus the MSE from an interpretation point of view, in the sense that MAE maintains the units of the quantities giving a more intuitive representation of the performance of the model to the user.
+
+%\begin{table}[H]
+%\caption{Hyperparameter search for optimization}\label{table:hyperparameters}
+%\begin{center}
+%\begin{tabular}{cc}
+%\textbf{Parameters}                                            & %\textbf{Search Grid}       \\ \hline
+%m              & $0,1,10,50   $          \\ 
+%quantile                & $0.25,0.5,0.75   $            \\ \hline
+%\end{tabular}
+%\end{center}
+%\end{table}
+
+Hyperparameters are optimized using a grid search with parameters $m \in \{0,1,10,50 \}$ and $quantile \in \{0.25,0.5,0.75\}$. We select the best performing parameter combination for each encoder and dataset. To evaluate which encoder helps the improvement of which quantile we test both encodings with both metrics (MAE and MSE) and we check their performance.
+
+\begin{figure}%[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/clean_images/mae_mse_differences.png}
+    \caption{Comparison between Quantile Encoder and Target Encoder for different evaluation metrics}
+    \label{fig:MAEvsMSE}
+\end{figure}
+
+Figure \ref{fig:MAEvsMSE} displays the percentual difference between each encoding with respect to two metrics when using Elastic Net (Generalized Linear Model)\cite{eNet,eNet2} with default scikit learn hyperparameters ($alpha=1.0$, $l1\_ratio=0.5$) as a final estimator.
+
+In the upper part of the figure, we can see that the Quantile Encoder achieves better results than the Target Encoder for all datasets except for one when measuring the MAE metric, having bigger percentual differences in medical payments and the StackOverflow datasets. In the lower part of the figure, we have the same plot using the MSE metric. Observe that mean encoder achieves better results in three out of five experiments. Observe that in this last case, percentual performance differences are smaller than in the case of MAE. Quantile encoder performs better than mean encoder in two of them. 
+
+As an additional observation, it is worth noting that the loss function of elastic net corresponds to a least-squares loss. Thus this should benefit mean encoding and harm the performance of quantile encoder. However, results show the robustness of the quantile encoder even when in this adversarial case.
+
+To verify the generalization of this observation, a quantile encoder is statistically validated on the selected data sets. The null hypothesis states that quantile encoder and mean encoder has the same performance when considering MAE. Table \ref{tab:Wilcoxon} shows the results of the Wilcoxon test \cite{Wilcoxon1992}~\footnote{The Wilcoxon test is a non-parametric statistical hypothesis test used to compare two repeated measurements on a single sample to assess whether their population means ranks differ.} on the MAE on 3 repetitions of 4-fold cross-validation.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{lr}
+  \hline
+Dataset & p-value \\ 
+  \hline
+Cauchy & 0.0881 \\ 
+  Kickstarter Projects & 0.0461 \\ 
+  Medical Payments & 0.0002 \\ 
+  StackOverflow 2019 & 0.3955 \\ 
+  StackOverflow 2018 & 0.0002 \\ 
+   \hline
+\end{tabular}
+\caption{p-values of Wilcoxon tests in several datasets} 
+\label{tab:Wilcoxon}
+\end{table}
+
+\begin{figure}[t]%[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/clean_images/lm_cv_differences.png}
+    \caption{Comparison between performance difference of Quantile Encoder and Target Encoder.}
+    \label{fig:density}
+\end{figure}
+Observing Table~\ref{tab:Wilcoxon} we see that the p-values in 3 out of 5 datasets are able to reject the null hypothesis at a significance level of $0.05$. We observe that in the \textit{cauchy} dataset the rejection level is found at a significance level of 0.10.  Finally, in the 2019 StackOverflow dataset, we are not able to reject the null hypothesis. Despite this last result, the quantile encoder is not worse in any of the five datasets. This shows that the quantile encoder is indeed a useful technique to encode categorical variables when optimizing the MAE.
+
+Figure \ref{fig:density} shows the density estimation of the distribution of the difference between the performance of the quantile encoder minus the performance of the target encoder considering the results obtained from the folds for each dataset. The red horizontal line corresponds to the value of equal performance. The integral of the density above the red line measures the probability of the quantile encoder to outperform the target encoder. On the contrary, the integral of the density below the red line measures the evidence the other way around. As expected, observing the plots, one can visually check that the evidence in favor of quantile encoder is very clear in two of the datasets. And it is favorable to quantile in the rest of the experiments. These results agree with the figures in Table \ref{tab:Wilcoxon} and help us to extract meaningful conclusions.
+
+\subsection{Summary encoder performance}
+
+The summary encoder method provides a broader description of a categorical variable than the quantile encoder. In this experiment, we empirically verify the performance of both in terms of their MAE when they are applied to different datasets. For this experiment we have chosen 3 quantiles that split our data in equal proportions for the summary encoder, {\em i.e.} $p=0.25$, $p=0.5$ and $p=0.75$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/clean_images/summary_compare.png}
+    \caption{Comparison between Summary, Quantile and Target encoders using the cross validated MAE error.}
+    \label{fig:summary}
+\end{figure}
+
+Figure \ref{fig:summary} depicts the results for this experiment. Notice that the mean performance of the summary encoder suggests a better performance when compared to the target encoder. This same behavior is observed when compared with quantile encoder in some cases. It must be noted that some extra caution needs to be taken when using the summary encoder as there is more risk of overfitting the more quantiles are used. This usage of the Quantile Encoding requires more hyperparameters as each new encoding requires two new hyperparameters, $m$ and $p$, making the hyperparameter search computationally more expensive. 
+
+%For the case of the StackOverflow dataset of 2019 we can see that the quantile performs better than the M-estimate target encoder, but the significant improvement comes when using the summary encoder, where the percentual improvement is around $8\%$.
+%\subsection{Statistics for the cross-validation framework}
+
+
+
+%\subsubsection{Partial Dependence Plots}
+% To depicts the functional relationship between our encoded categorical variables and the target ones, we can use Partial Dependence Plot (PDP) \cite{InterpretableML}, to show how the predictions partially depend on values of the input variables of interest and to compare between both encoding techniques.
+
+%\begin{equation*}
+%    \hat{f}_{x_S}(x_S)=E_{x_C}\left[\hat{f}(x_S,x_C)\right]=\int\hat{f}(x_S,x_C)d\mathbb{P}(x_C)
+%\end{equation*}
+
+%Where  $x_S$ are the feature or set of features for which the partial dependence function should be plotted and  $x_C$ are the rest of the features used in the training phase of the model. 
+
+%https://christophm.github.io/interpretable-ml-book/pdp.html
+%https://www.sas.com/content/dam/SAS/support/en/sas-global-forum-proceedings/2018/1950-2018.pdf
+ 
+%For the PDP we have used the \ref{dataset:so2019} and the 'country' feature that is the categorical feature that has more predictive power. As an estimator, we used a Random Forest regressor. 
+
+%\begin{figure}[H]
+%    \centering
+%    \subfloat[Target Encoding]{{\includegraphics[width=0.4\linewidth]{images/PDP_te.eps} }}%
+%    \qquad
+%    \subfloat[Quantile Encoding]{{\includegraphics[width=0.4\linewidth]{images/PDP_qe.eps} }}%
+%    \caption{PDP of country feature encoded with Target Encoding(a) and Quantile Encoder (b)}%
+%    \label{fig:PDP}
+%\end{figure}
+
+%For Figure \ref{fig:PDP} we can see that the 'country' feature for the StackOverflow 2018 dataset \ref{dataset:StackOverflow2018}, holds a more monotonic relationship with the target variable when using the Quantile Encoder. This increase in the monotonic behavior of the encoded feature enables the model to regulate the complexity and as we have seen in the previous section has an encoding that benefits especially for Generalized Linear Models. 
+
+\subsection{Discussion}
+
+The former experiments show that quantile encoder can better represent high cardinality categorical data in several scenarios. The observed improvements can be  argumented as follows:
+
+\begin{itemize}
+    \item Quantile encoder is robust in front of outliers. On the contrary, target encoding is very sensitive to samples in the training set with extreme values.% the target encoder might become a very underperforming feature, as the mean does not approximate any kind of general pattern. On the other hand, if a feature is encoded with the median of the target per group, it is very insensitive against outliers, therefore a much stronger encoding technique.
+    \item From an optimization point of view, the mean is the estimator that minimizes the Mean Squared Error of a sample. For instance, in linear regression, when we model with no features (just the intercept), the intercept is the mean of the response variable. However, the mean does not minimize other metrics, like the Mean Absolute Error. In those cases, the use of quantile encoder becomes a sensible option, providing a highly tunable summary statistic. Additionally, it is worth noting that from a regression point of view, MAE is a more intuitive metric, helping users interpretation of the results.
+    \item Finally, quantiles can be grouped to provide a much richer description of a categorical feature. For instance, we can run the percentiles 25, 50, and 75, which give much more information than just computing the mean. More features provide more information to the model. However, more features also increase the risk of overfitting and the problem starts gaining dimensionality. With the use of the Summary Encoder dimensionality does not become a hazard such as in the case of one-hot encoder but some fine-tuning of the regularization techniques is to be considered to avoid overfitting. 
+    %\textcolor{red}{No entiendo la Siguiente frase---->>} This is possible because there is a trade-off between the dimensionality of the data that we feed to the model and the richness of the description of the categories, but the dimensionality will hardly become an issue as in one hot encoding.
+\end{itemize}
+
+\section{Conclusion} \label{sec:conclusion}
+
+In this paper, we have studied the quantile encoder. Specifically, we made three contributions related to the encoding of categorical features with high cardinality in regression models. 
+
+Our first contribution is the definition of the Quantile Encoder as a way to encode categorical features in noisy datasets in a more robust way than mean target encoding. Quantile Encoding maps categories with a more suitable statistical aggregation than the rest of the compared encodings when categories display in long-tailed or skewed distributions. To provide empirical evidence we benchmark the approach in different datasets and provide statistics that support our claims.
+
+The second contribution is the observation that categorical encodings are sensitive to the model's loss function and interpretation/evaluation performance metric. In this respect, the performance of the model can heavily change if a general or not correctly selected encoder is chosen. In our particular case, quantile encoder is suitable when using mean absolute error as an evaluation metric. 
+
+Finally, due to the tunable hyperparameters of the quantile encoder, this shows a large versatility, being used for different metrics. Additionally, the concatenation of different quantiles allows for a wider and richer representation of the target category that results in a performance boost in regression models.
+
+To aid in the goal of open-source and reproducible research, we have released a toolkit, namely \emph{sktools} \cite{sktools}, as an open-source Python package that provides a flexible implementation of the concepts introduced in this paper. 
+
+%\subsubsection{Future work}
+For the summary encoder, we have used the M-estimate regularization technique, but further research can be done in the path of avoiding overfitting when creating a set of features out of a high-cardinality categorical feature. Strategies such as those found in leave-one-out encoding, or catboost encoder \cite{catboost-encoder} could be considered to that effect. Additionally, we have only focused on the quantile but different statistical aggregations of the target with different models may further improve specific performance metrics.
+
+
+%In order to keep the ideas simple and clear we have worked with an elastic net as an estimator, but many more models can be used and apply different statistical aggregations.
+
+
+
+% Balancing columns in a ref list is a bit of a pain because you
+% either use a hack like flushed or balance or manually insert
+% a column break.  http://www.tex.ac.uk/cgi-bin/texfaq2html?label=balance
+% multicols doesn't work because we're already in two-column mode,
+% and flushend isn't awesome, so I choose balance.  See this
+% for more info: http://cs.brown.edu/system/software/latex/doc/balance.pdf
+%
+% Note that in a perfect world balance wants to be in the first
+% column of the last page.
+%
+% If balance doesn't work for you, you can remove that and
+% hard-code a column break into the bbl file right before you
+% submit:
+%
+% http://StackOverflow.com/questions/2149854/how-to-manually-equalize-columns-
+% in-an-ieee-paper-if-using-bibtex
+%
+% Or, just remove \balance and give up on balancing the last page.
+%
+
+
+
+
+
+%\begin{acknowledgements}
+%If you'd like to thank anyone, place your comments here
+%and remove the percent signs.
+%\end{acknowledgements}
+
+% BibTeX users please use one of
+%\bibliographystyle{spbasic}      % basic style, author-year citations
+\bibliographystyle{spmpsci}      % mathematics and physical sciences
+%\bibliographystyle{spphys}       % APS-like style for physics
+\bibliography{sample}   % name your BibTeX data base
+
+\end{document}
+% end of file template.tex
+
